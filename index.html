@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BitOracle — Predict on Bitcoin L1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ───────────────────────────── VARIABLES ─────────────────────────────── */
+    :root {
+      --bg:        #080810;
+      --bg2:       #0d0d1a;
+      --bg3:       #111124;
+      --bg4:       #16162e;
+      --border:    rgba(255,255,255,0.06);
+      --border2:   rgba(139,92,246,0.2);
+      --text:      #f0f0ff;
+      --muted:     #6b6b8a;
+      --muted2:    #4a4a6a;
+      --yes:       #10b981;
+      --yes-dim:   rgba(16,185,129,0.12);
+      --no:        #f43f5e;
+      --no-dim:    rgba(244,63,94,0.12);
+      --accent:    #8b5cf6;
+      --accent2:   #a78bfa;
+      --accent3:   #c4b5fd;
+      --gold:      #f59e0b;
+      --gold-dim:  rgba(245,158,11,0.12);
+      --font-head: 'DM Sans', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --r:         16px;
+      --r-sm:      10px;
+      --r-xs:      6px;
+    }
+
+    /* ───────────────────────────── RESET ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ───────────────────────────── BACKGROUND ───────────────────────────── */
+    .bg-canvas {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(139,92,246,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(16,185,129,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(244,63,94,0.03) 0%, transparent 60%);
+    }
+
+    /* Grid overlay */
+    .bg-grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ───────────────────────────── NAV ──────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 60px;
+      background: rgba(8,8,16,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .nav-logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), #6d28d9);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 900;
+      box-shadow: 0 0 20px rgba(139,92,246,0.4);
+    }
+    .nav-logo-text {
+      font-family: var(--font-head);
+      font-size: 18px; font-weight: 800;
+      background: linear-gradient(135deg, var(--text), var(--accent3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .nav-badge {
+      font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--accent2); background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      padding: 2px 8px; border-radius: 20px; letter-spacing: 1px;
+    }
+
+    .nav-center {
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(13,13,26,0.6);
+      border: 1px solid var(--border);
+      border-radius: 40px; padding: 4px;
+    }
+    .nav-tab {
+      padding: 6px 18px; border-radius: 30px;
+      font-size: 12px; font-weight: 600; font-family: var(--font-body);
+      color: var(--muted); cursor: pointer; border: none;
+      background: transparent; transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active {
+      background: linear-gradient(135deg, var(--accent), #6d28d9);
+      color: white;
+      box-shadow: 0 4px 16px rgba(139,92,246,0.4);
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-btc {
+      font-family: var(--font-mono); font-size: 12px;
+      color: var(--gold); background: var(--gold-dim);
+      border: 1px solid rgba(245,158,11,0.2);
+      padding: 4px 12px; border-radius: 20px;
+    }
+    .connect-btn {
+      background: linear-gradient(135deg, var(--accent), #6d28d9);
+      color: white; border: none; cursor: pointer;
+      padding: 8px 20px; border-radius: 24px;
+      font-size: 12px; font-weight: 700; font-family: var(--font-body);
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 16px rgba(139,92,246,0.3);
+      transition: all 0.2s;
+    }
+    .connect-btn:hover { box-shadow: 0 6px 24px rgba(139,92,246,0.5); transform: translateY(-1px); }
+    .connect-btn.connected {
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: var(--yes);
+      box-shadow: none;
+    }
+
+    /* ───────────────────────────── LAYOUT ───────────────────────────────── */
+    .app-layout {
+      display: flex; gap: 0;
+      max-width: 1380px; margin: 0 auto;
+      padding: 0 24px;
+      position: relative; z-index: 1;
+    }
+    main {
+      flex: 1; min-width: 0;
+      padding: 80px 24px 120px 0;
+    }
+
+    /* ───────────────────────────── PAGES ───────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ───────────────────────────── HERO ─────────────────────────────────── */
+    .hero {
+      padding: 48px 0 40px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px;
+    }
+    .hero-left { flex: 1; }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--accent2); letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero-tag::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent2); box-shadow: 0 0 8px var(--accent2);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .hero-title {
+      font-family: var(--font-head);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, var(--yes), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 15px; color: var(--muted); max-width: 460px; line-height: 1.7;
+      margin-bottom: 28px;
+    }
+
+    .hero-stats {
+      display: flex; gap: 24px;
+    }
+    .hero-stat {
+      text-align: center;
+    }
+    .hero-stat-val {
+      font-family: var(--font-head);
+      font-size: 22px; font-weight: 800;
+      background: linear-gradient(135deg, var(--text), var(--accent3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .hero-stat-label {
+      font-size: 10px; font-weight: 600; color: var(--muted2);
+      text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-mono);
+    }
+
+    /* ───────────────────────────── FILTER BAR ───────────────────────────── */
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--muted2); text-transform: uppercase; letter-spacing: 1.5px;
+      margin-right: 4px;
+    }
+    .filter-pill {
+      padding: 5px 14px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; font-family: var(--font-body);
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      transition: all 0.2s;
+    }
+    .filter-pill:hover { border-color: var(--border2); color: var(--text); }
+    .filter-pill.active {
+      background: rgba(139,92,246,0.15);
+      border-color: rgba(139,92,246,0.4);
+      color: var(--accent3);
+    }
+    .filter-pill.yes-pill.active { background: var(--yes-dim); border-color: rgba(16,185,129,0.4); color: var(--yes); }
+    .filter-pill.no-pill.active { background: var(--no-dim); border-color: rgba(244,63,94,0.4); color: var(--no); }
+
+    .ml-auto { margin-left: auto; }
+    .create-mkt-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 18px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; font-family: var(--font-body);
+      cursor: pointer; border: 1px solid rgba(139,92,246,0.3);
+      background: rgba(139,92,246,0.1); color: var(--accent3);
+      transition: all 0.2s;
+    }
+    .create-mkt-btn:hover {
+      background: rgba(139,92,246,0.2);
+      border-color: rgba(139,92,246,0.5);
+      box-shadow: 0 4px 16px rgba(139,92,246,0.15);
+    }
+
+    /* ───────────────────────────── MARKETS GRID ─────────────────────────── */
+    .markets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .market-card {
+      background: rgba(13,13,26,0.7);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .market-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent);
+    }
+    .market-card:hover {
+      border-color: rgba(139,92,246,0.3);
+      box-shadow: 0 8px 40px rgba(139,92,246,0.12);
+      transform: translateY(-2px);
+    }
+    .market-card.featured {
+      border-color: rgba(139,92,246,0.3);
+      background: rgba(17,17,36,0.85);
+    }
+
+    .market-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; margin-bottom: 14px;
+    }
+    .market-cat {
+      font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+      text-transform: uppercase; letter-spacing: 1.5px;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .cat-crypto { background: rgba(139,92,246,0.15); color: var(--accent2); border: 1px solid rgba(139,92,246,0.2); }
+    .cat-sports { background: rgba(16,185,129,0.12); color: var(--yes); border: 1px solid rgba(16,185,129,0.2); }
+    .cat-politics { background: rgba(245,158,11,0.12); color: var(--gold); border: 1px solid rgba(245,158,11,0.2); }
+    .cat-other { background: rgba(244,63,94,0.1); color: var(--no); border: 1px solid rgba(244,63,94,0.2); }
+
+    .market-status {
+      font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .status-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+    }
+    .status-open .status-dot { background: var(--yes); box-shadow: 0 0 6px var(--yes); animation: pulse 2s infinite; }
+    .status-open { color: var(--yes); }
+    .status-resolved { color: var(--muted); }
+    .status-resolved .status-dot { background: var(--muted); }
+
+    .market-title {
+      font-family: var(--font-head);
+      font-size: 15px; font-weight: 700;
+      line-height: 1.4; margin-bottom: 16px;
+      letter-spacing: -0.3px;
+    }
+
+    /* Probability bar */
+    .prob-bar-wrap { margin-bottom: 14px; }
+    .prob-labels {
+      display: flex; justify-content: space-between;
+      font-size: 11px; font-weight: 600; margin-bottom: 6px;
+    }
+    .prob-yes { color: var(--yes); }
+    .prob-no { color: var(--no); }
+    .prob-bar {
+      height: 6px; border-radius: 99px;
+      background: rgba(244,63,94,0.25);
+      overflow: hidden;
+    }
+    .prob-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--yes), #34d399);
+      transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .market-pools {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 14px;
+    }
+    .pool-box {
+      padding: 10px 12px; border-radius: var(--r-sm);
+      text-align: center;
+    }
+    .pool-box.yes-box { background: var(--yes-dim); border: 1px solid rgba(16,185,129,0.15); }
+    .pool-box.no-box { background: var(--no-dim); border: 1px solid rgba(244,63,94,0.15); }
+    .pool-val {
+      font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    }
+    .pool-yes { color: var(--yes); }
+    .pool-no { color: var(--no); }
+    .pool-label {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--muted2); margin-top: 2px;
+    }
+
+    .market-footer {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .market-deadline {
+      font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .bet-btns {
+      display: flex; gap: 6px;
+    }
+    .bet-btn {
+      padding: 6px 14px; border-radius: var(--r-xs);
+      font-size: 11px; font-weight: 700; font-family: var(--font-body);
+      cursor: pointer; border: none; transition: all 0.18s; letter-spacing: 0.3px;
+    }
+    .bet-yes { background: var(--yes-dim); color: var(--yes); border: 1px solid rgba(16,185,129,0.2); }
+    .bet-yes:hover { background: rgba(16,185,129,0.25); box-shadow: 0 4px 12px rgba(16,185,129,0.2); }
+    .bet-no { background: var(--no-dim); color: var(--no); border: 1px solid rgba(244,63,94,0.2); }
+    .bet-no:hover { background: rgba(244,63,94,0.2); box-shadow: 0 4px 12px rgba(244,63,94,0.2); }
+
+    /* Winner badge */
+    .winner-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+    }
+    .winner-yes { background: var(--yes-dim); color: var(--yes); border: 1px solid rgba(16,185,129,0.3); }
+    .winner-no { background: var(--no-dim); color: var(--no); border: 1px solid rgba(244,63,94,0.3); }
+
+    /* ───────────────────────────── BET MODAL ────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(4,4,12,0.85);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: rgba(13,13,26,0.98);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 20px;
+      padding: 28px;
+      width: 440px; max-width: calc(100vw - 32px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.1);
+      position: relative;
+      transform: translateY(8px);
+      transition: transform 0.25s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal-title {
+      font-family: var(--font-head); font-size: 20px; font-weight: 800;
+      letter-spacing: -0.5px; margin-bottom: 4px;
+    }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .modal-close {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(255,255,255,0.06); border: none; cursor: pointer;
+      color: var(--muted); width: 28px; height: 28px; border-radius: 50%;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+    .modal-side-toggle {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 20px;
+    }
+    .side-btn {
+      padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--border);
+      cursor: pointer; background: transparent;
+      font-family: var(--font-head); font-size: 15px; font-weight: 700;
+      transition: all 0.2s; letter-spacing: -0.3px;
+    }
+    .side-btn.yes-side { color: var(--yes); }
+    .side-btn.yes-side.active { background: var(--yes-dim); border-color: rgba(16,185,129,0.4); box-shadow: 0 4px 20px rgba(16,185,129,0.15); }
+    .side-btn.no-side { color: var(--no); }
+    .side-btn.no-side.active { background: var(--no-dim); border-color: rgba(244,63,94,0.4); box-shadow: 0 4px 20px rgba(244,63,94,0.15); }
+
+    .modal-label {
+      font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--muted2); text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .modal-input {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text); font-family: var(--font-mono); font-size: 15px;
+      outline: none; transition: border-color 0.2s; margin-bottom: 16px;
+    }
+    .modal-input:focus { border-color: rgba(139,92,246,0.4); }
+
+    .modal-payout {
+      background: rgba(139,92,246,0.06);
+      border: 1px solid rgba(139,92,246,0.15);
+      border-radius: var(--r-sm); padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+    .payout-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .payout-row:last-child { margin-bottom: 0; padding-top: 6px; border-top: 1px solid var(--border); }
+    .payout-key { font-size: 12px; color: var(--muted); }
+    .payout-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); font-weight: 600; }
+    .payout-val.highlight { color: var(--accent3); font-size: 14px; }
+
+    .confirm-btn {
+      width: 100%; padding: 14px;
+      border-radius: var(--r-sm); border: none; cursor: pointer;
+      font-family: var(--font-head); font-size: 15px; font-weight: 700;
+      letter-spacing: -0.3px; transition: all 0.2s;
+    }
+    .confirm-btn.yes-confirm {
+      background: linear-gradient(135deg, var(--yes), #34d399);
+      color: #021f14;
+      box-shadow: 0 8px 24px rgba(16,185,129,0.3);
+    }
+    .confirm-btn.yes-confirm:hover { box-shadow: 0 12px 32px rgba(16,185,129,0.45); transform: translateY(-1px); }
+    .confirm-btn.no-confirm {
+      background: linear-gradient(135deg, var(--no), #fb7185);
+      color: #1f0209;
+      box-shadow: 0 8px 24px rgba(244,63,94,0.3);
+    }
+    .confirm-btn.no-confirm:hover { box-shadow: 0 12px 32px rgba(244,63,94,0.45); transform: translateY(-1px); }
+
+    /* ───────────────────────────── CREATE MARKET MODAL ──────────────────── */
+    .create-modal .modal { width: 520px; }
+    .form-row { margin-bottom: 16px; }
+    .form-row textarea.modal-input {
+      resize: vertical; min-height: 60px; font-size: 13px;
+      font-family: var(--font-body); margin-bottom: 0;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid .form-row { margin-bottom: 0; }
+    .cat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 16px; }
+    .cat-btn {
+      padding: 8px 4px; border-radius: var(--r-xs); border: 1px solid var(--border);
+      cursor: pointer; background: transparent; color: var(--muted);
+      font-size: 11px; font-weight: 600; font-family: var(--font-body);
+      transition: all 0.2s; text-align: center;
+    }
+    .cat-btn.active { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.12); color: var(--accent3); }
+
+    /* ───────────────────────────── PORTFOLIO PAGE ───────────────────────── */
+    .portfolio-header {
+      padding: 40px 0 28px;
+    }
+    .portfolio-title {
+      font-family: var(--font-head); font-size: 28px; font-weight: 800;
+      letter-spacing: -1px; margin-bottom: 4px;
+    }
+    .portfolio-sub { font-size: 13px; color: var(--muted); }
+
+    .portfolio-stats {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+      margin-bottom: 32px;
+    }
+    .pstat-card {
+      background: rgba(13,13,26,0.7); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px 20px;
+      backdrop-filter: blur(8px);
+      position: relative; overflow: hidden;
+    }
+    .pstat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .pstat-card.green::before { background: linear-gradient(90deg, transparent, var(--yes), transparent); }
+    .pstat-card.red::before { background: linear-gradient(90deg, transparent, var(--no), transparent); }
+    .pstat-card.purple::before { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .pstat-card.gold::before { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+    .pstat-val {
+      font-family: var(--font-head); font-size: 24px; font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .pstat-val.green { color: var(--yes); }
+    .pstat-val.red { color: var(--no); }
+    .pstat-val.purple { color: var(--accent3); }
+    .pstat-val.gold { color: var(--gold); }
+    .pstat-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .positions-list { display: flex; flex-direction: column; gap: 10px; }
+    .position-row {
+      background: rgba(13,13,26,0.6); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px;
+      backdrop-filter: blur(8px); transition: all 0.2s;
+    }
+    .position-row:hover { border-color: var(--border2); }
+    .pos-market { flex: 1; }
+    .pos-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .pos-meta { font-size: 11px; color: var(--muted); }
+    .pos-side {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+    }
+    .pos-yes { background: var(--yes-dim); color: var(--yes); border: 1px solid rgba(16,185,129,0.2); }
+    .pos-no { background: var(--no-dim); color: var(--no); border: 1px solid rgba(244,63,94,0.2); }
+    .pos-amount { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); min-width: 80px; text-align: right; }
+    .pos-pnl { font-family: var(--font-mono); font-size: 13px; font-weight: 600; min-width: 80px; text-align: right; }
+    .pos-pnl.up { color: var(--yes); }
+    .pos-pnl.down { color: var(--no); }
+    .claim-btn {
+      padding: 6px 16px; border-radius: var(--r-xs);
+      font-size: 11px; font-weight: 700; font-family: var(--font-body);
+      cursor: pointer; border: 1px solid rgba(139,92,246,0.3);
+      background: rgba(139,92,246,0.1); color: var(--accent3);
+      transition: all 0.2s;
+    }
+    .claim-btn:hover { background: rgba(139,92,246,0.2); }
+
+    /* ───────────────────────────── NEWS SIDEBAR ─────────────────────────── */
+    .news-sidebar {
+      width: 280px; flex-shrink: 0;
+      position: sticky; top: 72px;
+      height: calc(100vh - 90px);
+      overflow-y: auto; padding: 80px 0 24px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(139,92,246,0.3) transparent;
+    }
+    .news-sidebar::-webkit-scrollbar { width: 3px; }
+    .news-sidebar::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 99px; }
+
+    .sidebar-section-title {
+      font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+      color: var(--muted2); letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 10px; padding: 0 4px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .live-dot {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 9px; color: var(--yes);
+    }
+    .live-dot::before {
+      content: ''; width: 5px; height: 5px; border-radius: 50%;
+      background: var(--yes); box-shadow: 0 0 6px var(--yes);
+      animation: pulse 2s infinite;
+    }
+
+    .news-card {
+      background: rgba(13,13,26,0.55);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 14px;
+      margin-bottom: 10px;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .news-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.25), transparent);
+    }
+    .news-card:hover {
+      border-color: rgba(139,92,246,0.25);
+      background: rgba(139,92,246,0.06);
+    }
+    .news-cat {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1px;
+      padding: 2px 7px; border-radius: 20px; margin-bottom: 6px;
+    }
+    .news-title {
+      font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--text);
+      margin-bottom: 4px; font-family: var(--font-body);
+    }
+    .news-time {
+      font-size: 10px; color: var(--muted2); font-family: var(--font-mono);
+    }
+
+    /* BTC ticker */
+    .btc-ticker {
+      background: rgba(13,13,26,0.55);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      margin-bottom: 10px; backdrop-filter: blur(12px);
+    }
+    .btc-row { display: flex; align-items: center; justify-content: space-between; }
+    .btc-info { display: flex; align-items: center; gap: 10px; }
+    .btc-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #f7931a, #ffb347);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900; color: white; flex-shrink: 0;
+    }
+    .btc-price { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text); }
+    .btc-name { font-size: 10px; color: var(--muted); }
+    .btc-change { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+    .btc-up { color: var(--yes); }
+    .btc-down { color: var(--no); }
+    .btc-chart-wrap { height: 36px; margin-top: 10px; }
+    canvas#sidebarChart { width: 100% !important; height: 36px !important; }
+
+    /* Market suggestion */
+    .suggest-card {
+      background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(79,70,229,0.05));
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 12px; padding: 14px;
+      margin-bottom: 10px;
+    }
+    .suggest-title {
+      font-size: 11px; font-weight: 700; font-family: var(--font-body);
+      color: var(--accent3); margin-bottom: 6px;
+    }
+    .suggest-q {
+      font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 10px;
+    }
+    .suggest-create {
+      font-size: 10px; font-weight: 600; font-family: var(--font-mono);
+      color: var(--accent2); cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .suggest-create:hover { color: var(--accent3); text-decoration: underline; }
+
+    /* ───────────────────────────── OPIE ─────────────────────────────────── */
+    #opieBubble {
+      position: fixed; bottom: 28px; right: 28px; z-index: 300;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #6d28d9);
+      border: none; cursor: pointer;
+      box-shadow: 0 0 30px rgba(139,92,246,0.5), 0 0 60px rgba(139,92,246,0.2);
+      font-size: 22px; display: flex; align-items: center; justify-content: center;
+      animation: opieBounce 3s ease-in-out infinite;
+      transition: all 0.2s;
+    }
+    #opieBubble:hover { box-shadow: 0 0 40px rgba(139,92,246,0.7); transform: scale(1.08); }
+    @keyframes opieBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+    #opieIntro {
+      position: fixed; bottom: 92px; right: 28px; z-index: 299;
+      background: rgba(13,13,26,0.95); border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 14px; padding: 12px 16px; max-width: 220px;
+      font-size: 12px; color: var(--text); line-height: 1.5;
+      box-shadow: 0 8px 32px rgba(139,92,246,0.2);
+      backdrop-filter: blur(16px);
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    #chatWindow {
+      position: fixed; bottom: 92px; right: 28px; z-index: 299;
+      width: 340px; height: 480px;
+      background: rgba(10,10,22,0.92); border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 20px; display: none; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      backdrop-filter: blur(28px); overflow: hidden;
+    }
+    #chatWindow.open { display: flex; }
+    .chat-header {
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .chat-avatar {
+      width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), #6d28d9);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .chat-name { font-family: var(--font-head); font-size: 14px; font-weight: 700; }
+    .chat-status { font-size: 10px; color: var(--yes); display: flex; align-items: center; gap: 3px; }
+    .chat-status::before { content:''; width:5px;height:5px;border-radius:50%;background:var(--yes);box-shadow:0 0 5px var(--yes); }
+    .chat-close { margin-left: auto; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; }
+
+    #chatMessages { flex:1; overflow-y:auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    #chatMessages::-webkit-scrollbar{width:3px}
+    #chatMessages::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.3);border-radius:99px}
+
+    .msg { max-width: 85%; font-size: 12px; line-height: 1.5; padding: 8px 12px; border-radius: 12px; animation: fadeUp 0.3s ease; }
+    .msg.user { align-self: flex-end; background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.2); color: var(--text); border-bottom-right-radius: 4px; }
+    .msg.opie { align-self: flex-start; background: rgba(22,22,46,0.9); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.opie strong { color: var(--accent3); }
+
+    .chat-input-wrap { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    #chatInput {
+      flex:1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: var(--r-sm); color: var(--text);
+      padding: 8px 12px; font-family: var(--font-body); font-size: 12px; outline: none;
+    }
+    #chatInput:focus { border-color: rgba(139,92,246,0.4); }
+    #chatSend {
+      background: var(--accent); border: none; cursor: pointer;
+      color: white; width: 32px; height: 32px; border-radius: var(--r-xs);
+      font-size: 13px; flex-shrink: 0;
+    }
+
+    /* ───────────────────────────── TOAST ───────────────────────────────── */
+    #toastContainer {
+      position: fixed; top: 76px; right: 20px; z-index: 400;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      background: rgba(13,13,26,0.98); border-radius: var(--r-sm);
+      padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(16px);
+      animation: slideIn 0.3s ease; font-size: 12px; min-width: 260px;
+      pointer-events: all;
+    }
+    .toast.success { border: 1px solid rgba(16,185,129,0.3); }
+    .toast.error { border: 1px solid rgba(244,63,94,0.3); }
+    .toast.info { border: 1px solid rgba(139,92,246,0.3); }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+
+    /* ───────────────────────────── EMPTY STATE ─────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .empty-sub { font-size: 13px; }
+
+    /* ───────────────────────────── UTILS ───────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+    .section-title {
+      font-family: var(--font-head); font-size: 13px; font-weight: 700;
+      color: var(--muted2); text-transform: uppercase; letter-spacing: 2px;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    @media (max-width: 900px) {
+      .news-sidebar { display: none; }
+      .app-layout { padding: 0 16px; }
+      main { padding: 70px 0 100px; }
+      .markets-grid { grid-template-columns: 1fr; }
+      .portfolio-stats { grid-template-columns: 1fr 1fr; }
+      .hero { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-canvas"></div>
+<div class="bg-grid"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">⚡</div>
+    <div class="nav-logo-text">BitOracle</div>
+    <div class="nav-badge">BITCOIN L1</div>
+  </div>
+  <div class="nav-center">
+    <button class="nav-tab active" onclick="showPage('markets',this)">Markets</button>
+    <button class="nav-tab" onclick="showPage('portfolio',this)">Portfolio</button>
+    <button class="nav-tab" onclick="showPage('leaderboard',this)">Leaderboard</button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-btc" id="navBtcPrice">₿ —</div>
+    <button class="connect-btn" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="app-layout">
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- MARKETS PAGE -->
+    <div class="page active" id="page-markets">
+      <div class="hero">
+        <div class="hero-left">
+          <div class="hero-tag">First Prediction Market on Bitcoin L1</div>
+          <h1 class="hero-title">Predict anything.<br><span>Settle on Bitcoin.</span></h1>
+          <p class="hero-sub">The first trustless prediction market on Bitcoin Layer 1. Bet on crypto, sports, politics — all enforced by WASM smart contracts. No bridges. No custodians. Just Bitcoin.</p>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-val" id="statMarkets">12</div>
+              <div class="hero-stat-label">Markets</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-val" id="statVolume">₿ 4.2</div>
+              <div class="hero-stat-label">Volume</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-val" id="statBettors">238</div>
+              <div class="hero-stat-label">Bettors</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-val">2%</div>
+              <div class="hero-stat-label">Protocol Fee</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <span class="filter-label">Filter</span>
+        <button class="filter-pill active" onclick="filterMarkets('all',this)">All</button>
+        <button class="filter-pill" onclick="filterMarkets('crypto',this)">Crypto</button>
+        <button class="filter-pill" onclick="filterMarkets('sports',this)">Sports</button>
+        <button class="filter-pill" onclick="filterMarkets('politics',this)">Politics</button>
+        <button class="filter-pill" onclick="filterMarkets('other',this)">Other</button>
+        <button class="filter-pill yes-pill" onclick="filterMarkets('open',this)">Open</button>
+        <button class="filter-pill no-pill" onclick="filterMarkets('resolved',this)">Resolved</button>
+        <button class="create-mkt-btn ml-auto" onclick="openCreateModal()">+ Create Market</button>
+      </div>
+
+      <div class="markets-grid" id="marketsGrid"></div>
+    </div>
+
+    <!-- PORTFOLIO PAGE -->
+    <div class="page" id="page-portfolio">
+      <div class="portfolio-header">
+        <div class="portfolio-title">My Portfolio</div>
+        <div class="portfolio-sub">Track your positions and claim winnings</div>
+      </div>
+      <div class="portfolio-stats">
+        <div class="pstat-card green">
+          <div class="pstat-val green">+₿ 0.24</div>
+          <div class="pstat-label">Total Profit</div>
+        </div>
+        <div class="pstat-card purple">
+          <div class="pstat-val purple">₿ 1.40</div>
+          <div class="pstat-label">Total Wagered</div>
+        </div>
+        <div class="pstat-card gold">
+          <div class="pstat-val gold">7</div>
+          <div class="pstat-label">Active Positions</div>
+        </div>
+        <div class="pstat-card red">
+          <div class="pstat-val red">68%</div>
+          <div class="pstat-label">Win Rate</div>
+        </div>
+      </div>
+
+      <div class="section-title">Active Positions</div>
+      <div class="positions-list" id="positionsList"></div>
+    </div>
+
+    <!-- LEADERBOARD PAGE -->
+    <div class="page" id="page-leaderboard">
+      <div class="portfolio-header">
+        <div class="portfolio-title">Leaderboard</div>
+        <div class="portfolio-sub">Top predictors on Bitcoin L1</div>
+      </div>
+      <div class="positions-list" id="leaderboardList"></div>
+    </div>
+
+  </main>
+
+  <!-- NEWS SIDEBAR -->
+  <aside class="news-sidebar">
+    <div class="btc-ticker">
+      <div class="btc-row">
+        <div class="btc-info">
+          <div class="btc-icon">₿</div>
+          <div>
+            <div class="btc-price" id="sidebarBtcPrice">$—</div>
+            <div class="btc-name">Bitcoin</div>
+          </div>
+        </div>
+        <div class="btc-change" id="sidebarBtcChange">—%</div>
+      </div>
+      <div class="btc-chart-wrap"><canvas id="sidebarChart"></canvas></div>
+    </div>
+
+    <div class="sidebar-section-title">
+      // Market Suggestions
+      <span class="live-dot">AI</span>
+    </div>
+    <div class="suggest-card">
+      <div class="suggest-title">Trending question</div>
+      <div class="suggest-q">Will BTC break $100k before the end of March 2026?</div>
+      <div class="suggest-create" onclick="openCreateModal()">Create this market →</div>
+    </div>
+    <div class="suggest-card">
+      <div class="suggest-title">Hot topic</div>
+      <div class="suggest-q">Will OPNet mainnet launch on March 17 as scheduled?</div>
+      <div class="suggest-create" onclick="openCreateModal()">Create this market →</div>
+    </div>
+
+    <div class="sidebar-section-title" style="margin-top:16px;">
+      // OPNet News
+      <span class="live-dot">Live</span>
+    </div>
+    <div id="sidebarNews"><div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;">Loading...</div></div>
+  </aside>
+
+</div>
+
+<!-- BET MODAL -->
+<div class="modal-overlay" id="betModal">
+  <div class="modal">
+    <div class="modal-title" id="betModalTitle">Place Your Bet</div>
+    <div class="modal-sub" id="betModalSub">Market closes in 144 blocks</div>
+    <button class="modal-close" onclick="closeBetModal()">✕</button>
+
+    <div class="modal-side-toggle">
+      <button class="side-btn yes-side active" id="yesSideBtn" onclick="selectSide('yes')">YES ✓</button>
+      <button class="side-btn no-side" id="noSideBtn" onclick="selectSide('no')">NO ✗</button>
+    </div>
+
+    <div class="modal-label">Amount (tokens)</div>
+    <input class="modal-input" id="betAmount" type="number" placeholder="0.00" min="0" step="0.01" oninput="updatePayout()" />
+
+    <div class="modal-payout">
+      <div class="payout-row">
+        <span class="payout-key">Your bet</span>
+        <span class="payout-val" id="payoutBet">—</span>
+      </div>
+      <div class="payout-row">
+        <span class="payout-key">Protocol fee (2%)</span>
+        <span class="payout-val" id="payoutFee">—</span>
+      </div>
+      <div class="payout-row">
+        <span class="payout-key">Current odds</span>
+        <span class="payout-val" id="payoutOdds">—</span>
+      </div>
+      <div class="payout-row">
+        <span class="payout-key">Potential payout</span>
+        <span class="payout-val highlight" id="payoutMax">—</span>
+      </div>
+    </div>
+
+    <button class="confirm-btn yes-confirm" id="confirmBtn" onclick="confirmBet()">Confirm YES Bet</button>
+  </div>
+</div>
+
+<!-- CREATE MARKET MODAL -->
+<div class="modal-overlay create-modal" id="createModal">
+  <div class="modal">
+    <div class="modal-title">Create a Market</div>
+    <div class="modal-sub">Predict anything on Bitcoin L1</div>
+    <button class="modal-close" onclick="closeCreateModal()">✕</button>
+
+    <div class="form-row">
+      <div class="modal-label">Market Question</div>
+      <textarea class="modal-input" id="marketQuestion" placeholder="Will BTC break $100k before April 2026?"></textarea>
+    </div>
+
+    <div class="modal-label">Category</div>
+    <div class="cat-grid">
+      <button class="cat-btn active" onclick="selectCat(0,this)">Crypto</button>
+      <button class="cat-btn" onclick="selectCat(1,this)">Sports</button>
+      <button class="cat-btn" onclick="selectCat(2,this)">Politics</button>
+      <button class="cat-btn" onclick="selectCat(3,this)">Other</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="modal-label">Duration (blocks)</div>
+        <input class="modal-input" id="marketDuration" type="number" value="1008" placeholder="1008 ≈ 7 days" style="margin-bottom:0" />
+      </div>
+      <div class="form-row">
+        <div class="modal-label">Token Address</div>
+        <input class="modal-input" id="marketToken" type="text" placeholder="op1sqqk..." style="margin-bottom:0;font-size:11px" />
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+    <button class="confirm-btn yes-confirm" onclick="createMarket()">Deploy Market on Bitcoin L1</button>
+  </div>
+</div>
+
+<!-- OPIE -->
+<div id="opieIntro">Hey! I'm Opie ⚡<br>Ask me about any market or use voice commands to bet!</div>
+<div id="chatWindow">
+  <div class="chat-header">
+    <div class="chat-avatar">⚡</div>
+    <div>
+      <div class="chat-name">Opie AI</div>
+      <div class="chat-status">Online</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div id="chatMessages"></div>
+  <div class="chat-input-wrap">
+    <input id="chatInput" placeholder="Ask Opie or give a command..." onkeydown="if(event.key==='Enter')sendChat()" />
+    <button id="chatSend" onclick="sendChat()">↑</button>
+  </div>
+</div>
+<button id="opieBubble" onclick="toggleChat()">⚡</button>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let walletConnected = false;
+let walletAddress = '';
+let currentFilter = 'all';
+let betMarketId = null;
+let betSide = 'yes';
+let selectedCategory = 0;
+let chatOpen = false;
+let introVisible = true;
+
+// Demo markets data
+const MARKETS = [
+  { id:0, title:'Will BTC break $100,000 before April 1, 2026?', category:'crypto', status:'open', yesPool:12400, noPool:8200, deadline:144*7, featured:true },
+  { id:1, title:'Will OPNet mainnet launch on March 17, 2026 as announced?', category:'crypto', status:'open', yesPool:9800, noPool:3200, deadline:144*12, featured:true },
+  { id:2, title:'Will ETH flippening BTC in market cap by end of 2026?', category:'crypto', status:'open', yesPool:2100, noPool:15800, deadline:144*30 },
+  { id:3, title:'Will Argentina win the 2026 FIFA World Cup?', category:'sports', status:'open', yesPool:5600, noPool:11200, deadline:144*90 },
+  { id:4, title:'Will the Fed cut rates in their March 2026 meeting?', category:'politics', status:'open', yesPool:7400, noPool:6100, deadline:144*14 },
+  { id:5, title:'Will Bitcoin Dominance stay above 50% through April?', category:'crypto', status:'open', yesPool:8800, noPool:4400, deadline:144*25 },
+  { id:6, title:'Will MotoSwap TVL hit $10M within 30 days of mainnet?', category:'crypto', status:'open', yesPool:3300, noPool:5500, deadline:144*30 },
+  { id:7, title:'Will the Lakers make the 2026 NBA Playoffs?', category:'sports', status:'resolved', yesPool:6200, noPool:4100, outcome:'yes' },
+  { id:8, title:'Will Solana price exceed $400 before end of Q1 2026?', category:'crypto', status:'resolved', yesPool:4500, noPool:9800, outcome:'no' },
+];
+
+// Demo positions
+const POSITIONS = [
+  { market:'Will BTC break $100,000 before April 1, 2026?', side:'yes', amount:0.05, odds:1.68, status:'open' },
+  { market:'Will OPNet mainnet launch on March 17?', side:'yes', amount:0.12, odds:2.81, status:'open' },
+  { market:'Will ETH flippening BTC?', side:'no', amount:0.08, odds:1.15, status:'open' },
+  { market:'Will the Fed cut rates in March?', side:'yes', amount:0.03, odds:1.61, status:'open' },
+  { market:'Will Solana exceed $400?', side:'no', amount:0.10, odds:1.18, status:'resolved', won:true },
+];
+
+// Demo leaderboard
+const LEADERBOARD = [
+  { rank:1, addr:'opt1sqzg...2yxpvn', profit:'+₿ 2.41', wager:'₿ 8.20', rate:'74%', badge:'🥇' },
+  { rank:2, addr:'opt1sqkm...klg3f', profit:'+₿ 1.88', wager:'₿ 6.50', rate:'69%', badge:'🥈' },
+  { rank:3, addr:'opt1squy...hsq4k', profit:'+₿ 1.22', wager:'₿ 5.80', rate:'65%', badge:'🥉' },
+  { rank:4, addr:'opt1sqqk...m8w9z', profit:'+₿ 0.98', wager:'₿ 4.20', rate:'62%', badge:'' },
+  { rank:5, addr:'opt1sqzg...lv3mx', profit:'+₿ 0.74', wager:'₿ 3.10', rate:'61%', badge:'' },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'leaderboard') renderLeaderboard();
+  if (id === 'portfolio') renderPositions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════════
+async function connectWallet() {
+  const btn = document.getElementById('connectBtn');
+  if (walletConnected) {
+    walletConnected = false; walletAddress = '';
+    btn.textContent = 'Connect Wallet';
+    btn.classList.remove('connected');
+    showToast('Wallet disconnected', 'info', '🔌');
+    return;
+  }
+  btn.textContent = 'Connecting...';
+  await new Promise(r => setTimeout(r, 900));
+  if (typeof window.opnet !== 'undefined') {
+    try {
+      const accs = await window.opnet.requestAccounts();
+      walletAddress = accs[0];
+    } catch(e) { walletAddress = 'opt1sqkm...klg3f'; }
+  } else {
+    walletAddress = 'opt1sqkm...klg3f';
+  }
+  walletConnected = true;
+  btn.textContent = walletAddress.substring(0,14) + '...';
+  btn.classList.add('connected');
+  showToast('Wallet connected!', 'success', '⚡');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER MARKETS
+// ═══════════════════════════════════════════════════════════════
+function renderMarkets(filter) {
+  const grid = document.getElementById('marketsGrid');
+  let markets = MARKETS;
+  if (filter && filter !== 'all') {
+    if (filter === 'open') markets = markets.filter(m => m.status === 'open');
+    else if (filter === 'resolved') markets = markets.filter(m => m.status === 'resolved');
+    else markets = markets.filter(m => m.category === filter);
+  }
+
+  if (!markets.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">🔮</div>
+      <div class="empty-title">No markets found</div>
+      <div class="empty-sub">Try a different filter or create a new market</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = markets.map(m => {
+    const total = m.yesPool + m.noPool;
+    const yesP = total ? Math.round((m.yesPool / total) * 100) : 50;
+    const noP = 100 - yesP;
+    const catMap = { crypto:'cat-crypto', sports:'cat-sports', politics:'cat-politics', other:'cat-other' };
+    const catLabel = { crypto:'Crypto', sports:'Sports', politics:'Politics', other:'Other' };
+    const blocksLeft = m.deadline || 0;
+    const daysLeft = Math.round(blocksLeft / 144);
+    const isOpen = m.status === 'open';
+
+    return `<div class="market-card${m.featured?' featured':''}" onclick="openBetModal(${m.id})">
+      <div class="market-card-header">
+        <span class="market-cat ${catMap[m.category]}">${catLabel[m.category]}</span>
+        <div class="market-status ${isOpen?'status-open':'status-resolved'}">
+          <div class="status-dot"></div>
+          ${isOpen ? 'LIVE' : 'RESOLVED'}
+        </div>
+      </div>
+      <div class="market-title">${m.title}</div>
+      <div class="prob-bar-wrap">
+        <div class="prob-labels">
+          <span class="prob-yes">YES ${yesP}%</span>
+          <span class="prob-no">NO ${noP}%</span>
+        </div>
+        <div class="prob-bar">
+          <div class="prob-fill" style="width:${yesP}%"></div>
+        </div>
+      </div>
+      <div class="market-pools">
+        <div class="pool-box yes-box">
+          <div class="pool-val pool-yes">${(m.yesPool/1000).toFixed(1)}K</div>
+          <div class="pool-label">YES Pool</div>
+        </div>
+        <div class="pool-box no-box">
+          <div class="pool-val pool-no">${(m.noPool/1000).toFixed(1)}K</div>
+          <div class="pool-label">NO Pool</div>
+        </div>
+      </div>
+      <div class="market-footer">
+        ${isOpen
+          ? `<div class="market-deadline">⏱ ${daysLeft}d remaining</div>
+             <div class="bet-btns" onclick="event.stopPropagation()">
+               <button class="bet-btn bet-yes" onclick="openBetModal(${m.id},'yes')">YES</button>
+               <button class="bet-btn bet-no" onclick="openBetModal(${m.id},'no')">NO</button>
+             </div>`
+          : `<div class="market-deadline">Resolved</div>
+             <div class="winner-badge ${m.outcome==='yes'?'winner-yes':'winner-no'}">${m.outcome==='yes'?'✓ YES Wins':'✗ NO Wins'}</div>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterMarkets(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderMarkets(f);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BET MODAL
+// ═══════════════════════════════════════════════════════════════
+function openBetModal(id, side) {
+  betMarketId = id;
+  const m = MARKETS.find(x => x.id === id);
+  if (!m || m.status !== 'open') return;
+  document.getElementById('betModalTitle').textContent = m.title.length > 50 ? m.title.substring(0,50)+'...' : m.title;
+  const days = Math.round((m.deadline||0) / 144);
+  document.getElementById('betModalSub').textContent = `Market closes in ~${days} days`;
+  document.getElementById('betAmount').value = '';
+  document.getElementById('payoutBet').textContent = '—';
+  document.getElementById('payoutFee').textContent = '—';
+  document.getElementById('payoutOdds').textContent = '—';
+  document.getElementById('payoutMax').textContent = '—';
+  selectSide(side || 'yes');
+  document.getElementById('betModal').classList.add('open');
+}
+function closeBetModal() { document.getElementById('betModal').classList.remove('open'); }
+
+function selectSide(side) {
+  betSide = side;
+  document.getElementById('yesSideBtn').classList.toggle('active', side === 'yes');
+  document.getElementById('noSideBtn').classList.toggle('active', side === 'no');
+  const btn = document.getElementById('confirmBtn');
+  if (side === 'yes') {
+    btn.className = 'confirm-btn yes-confirm';
+    btn.textContent = 'Confirm YES Bet';
+  } else {
+    btn.className = 'confirm-btn no-confirm';
+    btn.textContent = 'Confirm NO Bet';
+  }
+  updatePayout();
+}
+
+function updatePayout() {
+  const amt = parseFloat(document.getElementById('betAmount').value) || 0;
+  if (!amt || !betMarketId) return;
+  const m = MARKETS.find(x => x.id === betMarketId);
+  if (!m) return;
+
+  const fee = amt * 0.02;
+  const net = amt - fee;
+  const myPool = betSide === 'yes' ? m.yesPool + net : m.noPool + net;
+  const otherPool = betSide === 'yes' ? m.noPool : m.yesPool;
+  const totalPool = myPool + otherPool;
+  const odds = totalPool / myPool;
+  const payout = net * odds;
+
+  document.getElementById('payoutBet').textContent = amt.toFixed(4) + ' tokens';
+  document.getElementById('payoutFee').textContent = fee.toFixed(4) + ' tokens';
+  document.getElementById('payoutOdds').textContent = odds.toFixed(3) + 'x';
+  document.getElementById('payoutMax').textContent = payout.toFixed(4) + ' tokens';
+}
+
+async function confirmBet() {
+  if (!walletConnected) { connectWallet(); return; }
+  const amt = parseFloat(document.getElementById('betAmount').value);
+  if (!amt || amt <= 0) { showToast('Enter a valid amount', 'error', '❌'); return; }
+
+  const btn = document.getElementById('confirmBtn');
+  btn.textContent = 'Confirming on Bitcoin L1...';
+  btn.style.opacity = '0.7';
+  await new Promise(r => setTimeout(r, 1400));
+
+  const m = MARKETS.find(x => x.id === betMarketId);
+  if (betSide === 'yes') { m.yesPool += Math.round(amt * 0.98 * 1000); }
+  else { m.noPool += Math.round(amt * 0.98 * 1000); }
+
+  closeBetModal();
+  renderMarkets(currentFilter);
+  showToast(`Bet placed! ${amt} tokens on ${betSide.toUpperCase()}`, 'success', '🎯');
+  btn.textContent = betSide === 'yes' ? 'Confirm YES Bet' : 'Confirm NO Bet';
+  btn.style.opacity = '1';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CREATE MARKET MODAL
+// ═══════════════════════════════════════════════════════════════
+function openCreateModal() { document.getElementById('createModal').classList.add('open'); }
+function closeCreateModal() { document.getElementById('createModal').classList.remove('open'); }
+
+function selectCat(idx, btn) {
+  selectedCategory = idx;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function createMarket() {
+  if (!walletConnected) { connectWallet(); return; }
+  const q = document.getElementById('marketQuestion').value.trim();
+  if (!q) { showToast('Enter a market question', 'error', '❌'); return; }
+
+  const catNames = ['crypto','sports','politics','other'];
+  const dur = parseInt(document.getElementById('marketDuration').value) || 1008;
+
+  const btn = document.querySelector('#createModal .confirm-btn');
+  btn.textContent = 'Deploying on Bitcoin L1...';
+  btn.style.opacity = '0.7';
+  await new Promise(r => setTimeout(r, 1600));
+
+  MARKETS.unshift({
+    id: MARKETS.length,
+    title: q,
+    category: catNames[selectedCategory],
+    status: 'open',
+    yesPool: 0,
+    noPool: 0,
+    deadline: dur,
+    featured: false,
+  });
+
+  closeCreateModal();
+  renderMarkets(currentFilter);
+  showToast('Market deployed on Bitcoin L1!', 'success', '🚀');
+  btn.textContent = 'Deploy Market on Bitcoin L1';
+  btn.style.opacity = '1';
+  document.getElementById('marketQuestion').value = '';
+  document.getElementById('statMarkets').textContent = MARKETS.filter(m=>m.status==='open').length;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PORTFOLIO
+// ═══════════════════════════════════════════════════════════════
+function renderPositions() {
+  const list = document.getElementById('positionsList');
+  list.innerHTML = POSITIONS.map(p => {
+    const currentOdds = p.odds;
+    const pnl = (currentOdds - 1) * p.amount;
+    const isUp = pnl > 0;
+    return `<div class="position-row">
+      <div class="pos-market">
+        <div class="pos-title">${p.market}</div>
+        <div class="pos-meta">Odds at bet: ${p.odds}x · ${p.status === 'resolved' ? (p.won ? 'Won ✓' : 'Lost ✗') : 'In progress'}</div>
+      </div>
+      <div class="pos-side pos-${p.side}">${p.side.toUpperCase()}</div>
+      <div class="pos-amount">₿ ${p.amount.toFixed(3)}</div>
+      <div class="pos-pnl ${isUp?'up':'down'}">${isUp?'+':''}₿ ${Math.abs(pnl).toFixed(4)}</div>
+      ${p.status === 'resolved' && p.won ? '<button class="claim-btn" onclick="claimWinnings()">Claim</button>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function claimWinnings() {
+  if (!walletConnected) { connectWallet(); return; }
+  await new Promise(r => setTimeout(r, 1000));
+  showToast('Winnings claimed to wallet!', 'success', '💰');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderLeaderboard() {
+  const list = document.getElementById('leaderboardList');
+  list.innerHTML = LEADERBOARD.map(p => `
+    <div class="position-row">
+      <div style="font-size:20px;min-width:32px;text-align:center">${p.badge || '#'+p.rank}</div>
+      <div class="pos-market">
+        <div class="pos-title" style="font-family:var(--font-mono);font-size:12px">${p.addr}</div>
+        <div class="pos-meta">Win rate: ${p.rate} · Total wagered: ${p.wager}</div>
+      </div>
+      <div class="pos-pnl up" style="font-size:15px">${p.profit}</div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OPIE CHAT
+// ═══════════════════════════════════════════════════════════════
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatWindow').classList.toggle('open', chatOpen);
+  document.getElementById('opieIntro').style.display = 'none';
+  introVisible = false;
+  if (chatOpen && document.getElementById('chatMessages').children.length === 0) {
+    addMsg("Hey! I'm Opie ⚡ I'm your Bitcoin L1 prediction guide. Ask me about any market, or say things like:\n\n• 'Show open markets'\n• 'What's the BTC market?'\n• 'Bet YES on BTC 100k'", 'opie');
+  }
+}
+
+function addMsg(text, role) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = text.replace(/\n/g,'<br>');
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg(text, 'user');
+
+  // Handle commands
+  const lower = text.toLowerCase();
+  if (lower.includes('connect')) { connectWallet(); addMsg("Connecting your wallet now! ⚡", 'opie'); return; }
+  if (lower.includes('open markets') || lower.includes('show markets')) {
+    const open = MARKETS.filter(m => m.status === 'open');
+    addMsg(`There are <strong>${open.length} open markets</strong> right now! The hottest one: <strong>"${open[0]?.title}"</strong> with ${((open[0]?.yesPool||0)/1000).toFixed(1)}K YES vs ${((open[0]?.noPool||0)/1000).toFixed(1)}K NO.`, 'opie');
+    return;
+  }
+  if (lower.includes('btc') && lower.includes('100k')) {
+    const m = MARKETS[0];
+    const total = m.yesPool + m.noPool;
+    const yesP = Math.round((m.yesPool/total)*100);
+    addMsg(`The BTC $100k market has <strong>${yesP}% YES probability</strong>! YES pool: ${(m.yesPool/1000).toFixed(1)}K · NO pool: ${(m.noPool/1000).toFixed(1)}K. Want to place a bet? Just say "Bet YES on BTC 100k"`, 'opie');
+    return;
+  }
+  if (lower.includes('bet yes') || lower.includes('bet no')) {
+    if (!walletConnected) { addMsg("You need to connect your wallet first! Say 'connect wallet' 🔌", 'opie'); return; }
+    const side = lower.includes('bet yes') ? 'yes' : 'no';
+    const btcMarket = MARKETS[0];
+    addMsg(`Opening the bet panel for <strong>"${btcMarket.title}"</strong> on the ${side.toUpperCase()} side! 🎯`, 'opie');
+    openBetModal(0, side);
+    return;
+  }
+  if (lower.includes('create market')) {
+    addMsg("I'll open the market creator for you! You can bet on anything — crypto, sports, politics. ⚡", 'opie');
+    openCreateModal();
+    return;
+  }
+
+  // AI response via Groq
+  addMsg('<em style="color:var(--muted)">Thinking...</em>', 'opie');
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 300,
+        messages: [
+          { role: 'system', content: 'You are Opie, a friendly AI guide for BitOracle — the first prediction market on Bitcoin L1 built on OPNet. Help users understand markets, place bets, and explain how Bitcoin L1 prediction markets work. Be concise, enthusiastic, and helpful. Use ⚡ occasionally.' },
+          { role: 'user', content: text }
+        ]
+      })
+    });
+    const data = await res.json();
+    const msgs = document.getElementById('chatMessages');
+    msgs.lastChild.innerHTML = data.choices[0].message.content;
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    const msgs = document.getElementById('chatMessages');
+    msgs.lastChild.innerHTML = "BitOracle is the first prediction market on Bitcoin L1 — powered by OPNet WASM smart contracts. No bridges, just Bitcoin! ⚡";
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg, type, icon) {
+  const container = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type||'info');
+  t.innerHTML = `<span class="toast-icon">${icon||'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BTC PRICE
+// ═══════════════════════════════════════════════════════════════
+async function fetchBTC() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
+    const data = await res.json();
+    const price = data.bitcoin.usd;
+    const change = data.bitcoin.usd_24h_change.toFixed(2);
+    document.getElementById('navBtcPrice').textContent = '₿ $' + price.toLocaleString();
+    document.getElementById('sidebarBtcPrice').textContent = '$' + price.toLocaleString();
+    const cel = document.getElementById('sidebarBtcChange');
+    cel.textContent = (change > 0 ? '+' : '') + change + '%';
+    cel.className = 'btc-change ' + (change > 0 ? 'btc-up' : 'btc-down');
+  } catch(e) {}
+}
+
+async function fetchBTCChart() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7&interval=daily');
+    const data = await res.json();
+    const prices = data.prices.map(p => p[1]);
+    const canvas = document.getElementById('sidebarChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    canvas.height = 36 * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const w = canvas.offsetWidth, h = 36;
+    const min = Math.min(...prices), max = Math.max(...prices);
+    const isUp = prices[prices.length-1] > prices[0];
+    const color = isUp ? '#10b981' : '#f43f5e';
+    const grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, isUp ? 'rgba(16,185,129,0.35)' : 'rgba(244,63,94,0.35)');
+    grad.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    prices.forEach((p,i) => {
+      const x=(i/(prices.length-1))*w;
+      const y=h-((p-min)/(max-min))*(h-4)-2;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    ctx.fillStyle=grad; ctx.fill();
+  } catch(e) {}
+}
+
+async function loadSidebarNews() {
+  const el = document.getElementById('sidebarNews');
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'llama-3.3-70b-versatile',
+        max_tokens:700,
+        messages:[
+          { role:'system', content:'Return ONLY valid JSON array. No markdown. Each: {title, summary (max 8 words), time, category (OPNet|Bitcoin|DeFi|Predict)}' },
+          { role:'user', content:'Generate 5 realistic recent news items about OPNet, Bitcoin L1 prediction markets, DeFi. JSON only.' }
+        ]
+      })
+    });
+    const data = await res.json();
+    const news = JSON.parse(data.choices[0].message.content.replace(/```json?|```/g,'').trim());
+    const colors = { OPNet:'#8b5cf6', Bitcoin:'#f59e0b', DeFi:'#10b981', Predict:'#06b6d4' };
+    const bgs = { OPNet:'rgba(139,92,246,0.1)', Bitcoin:'rgba(245,158,11,0.1)', DeFi:'rgba(16,185,129,0.1)', Predict:'rgba(6,182,212,0.1)' };
+    el.innerHTML = news.map(n => `
+      <div class="news-card" onclick="window.open('https://x.com/opnetbtc','_blank')">
+        <span class="news-cat" style="background:${bgs[n.category]||'rgba(139,92,246,0.1)'};color:${colors[n.category]||'#8b5cf6'};border:1px solid ${colors[n.category]||'#8b5cf6'}33">${n.category}</span>
+        <div class="news-title">${n.title}</div>
+        <div class="news-time">${n.time}</div>
+      </div>`).join('');
+  } catch(e) {
+    const fallback = [
+      { category:'OPNet', title:'OPNet Mainnet Set for March 17 Launch', time:'2h ago' },
+      { category:'Predict', title:'BitOracle Goes Live on Bitcoin L1', time:'4h ago' },
+      { category:'Bitcoin', title:'BTC Dominance Climbs Above 54%', time:'6h ago' },
+      { category:'DeFi', title:'MotoSwap Testnet Volume Surges 3x', time:'10h ago' },
+      { category:'OPNet', title:'WASM Smart Contracts Explained', time:'1d ago' },
+    ];
+    const colors = { OPNet:'#8b5cf6', Bitcoin:'#f59e0b', DeFi:'#10b981', Predict:'#06b6d4' };
+    const bgs = { OPNet:'rgba(139,92,246,0.1)', Bitcoin:'rgba(245,158,11,0.1)', DeFi:'rgba(16,185,129,0.1)', Predict:'rgba(6,182,212,0.1)' };
+    el.innerHTML = fallback.map(n => `
+      <div class="news-card">
+        <span class="news-cat" style="background:${bgs[n.category]};color:${colors[n.category]};border:1px solid ${colors[n.category]}33">${n.category}</span>
+        <div class="news-title">${n.title}</div>
+        <div class="news-time">${n.time}</div>
+      </div>`).join('');
+  }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// Intro hide after delay
+setTimeout(() => {
+  if (introVisible) document.getElementById('opieIntro').style.display = 'none';
+}, 5000);
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+renderMarkets('all');
+renderPositions();
+fetchBTC();
+fetchBTCChart();
+loadSidebarNews();
+setInterval(fetchBTC, 60000);
+</script>
+</body>
+</html>

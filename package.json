@@ -1,0 +1,16 @@
+{
+  "name": "bitoracle-prediction-market",
+  "version": "1.0.0",
+  "description": "First prediction market on Bitcoin L1 - OPNet Week 3",
+  "scripts": {
+    "build": "node_modules/.bin/asc src/prediction/index.ts --config asconfig.json --target release",
+    "build:prediction": "node_modules/.bin/asc src/prediction/index.ts --config asconfig.json --target release"
+  },
+  "dependencies": {
+    "@btc-vision/assemblyscript": "latest",
+    "@btc-vision/as-bignum": "latest",
+    "@btc-vision/btc-runtime": "rc",
+    "@btc-vision/opnet-transform": "latest",
+    "@assemblyscript/loader": "latest"
+  }
+}
