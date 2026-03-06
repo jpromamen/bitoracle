@@ -11,30 +11,21 @@ import {
 } from '@btc-vision/btc-runtime/runtime';
 import { StoredMapU256 } from '@btc-vision/btc-runtime/runtime/storage/maps/StoredMapU256';
 
-// =============================================================================
-// Storage Pointer Allocation
-// =============================================================================
 const ownerPointer: u16 = Blockchain.nextPointer;
 const marketCountPointer: u16 = Blockchain.nextPointer;
-
-// Per-market storage (keyed by marketId)
-const marketTitlePointer: u16 = Blockchain.nextPointer;       // truncated title hash
-const marketDeadlinePointer: u16 = Blockchain.nextPointer;    // block deadline
-const marketResolvedPointer: u16 = Blockchain.nextPointer;    // 0=open, 1=YES, 2=NO, 3=cancelled
-const marketYesPoolPointer: u16 = Blockchain.nextPointer;     // total YES bets
-const marketNoPoolPointer: u16 = Blockchain.nextPointer;      // total NO bets
-const marketCategoryPointer: u16 = Blockchain.nextPointer;    // 0=crypto 1=sports 2=politics 3=other
-const marketCreatorPointer: u16 = Blockchain.nextPointer;     // creator address as u256
-
-// Per-user-per-market (keyed by hash of userAddr + marketId)
+const marketTitlePointer: u16 = Blockchain.nextPointer;
+const marketDeadlinePointer: u16 = Blockchain.nextPointer;
+const marketResolvedPointer: u16 = Blockchain.nextPointer;
+const marketYesPoolPointer: u16 = Blockchain.nextPointer;
+const marketNoPoolPointer: u16 = Blockchain.nextPointer;
+const marketCategoryPointer: u16 = Blockchain.nextPointer;
+const marketCreatorPointer: u16 = Blockchain.nextPointer;
 const userYesBetPointer: u16 = Blockchain.nextPointer;
 const userNoBetPointer: u16 = Blockchain.nextPointer;
 const userClaimedPointer: u16 = Blockchain.nextPointer;
 
-// Protocol fee: 2% (200 basis points)
 const FEE_BPS: u64 = 200;
 const BPS_BASE: u64 = 10000;
-
 const GLOBAL_KEY: u256 = u256.Zero;
 
 @final
@@ -42,7 +33,6 @@ export class PredictionMarket extends OP_NET {
 
     private readonly ownerMap: StoredMapU256;
     private readonly marketCountMap: StoredMapU256;
-
     private readonly marketTitle: StoredMapU256;
     private readonly marketDeadline: StoredMapU256;
     private readonly marketResolved: StoredMapU256;
@@ -50,7 +40,6 @@ export class PredictionMarket extends OP_NET {
     private readonly marketNoPool: StoredMapU256;
     private readonly marketCategory: StoredMapU256;
     private readonly marketCreator: StoredMapU256;
-
     private readonly userYesBet: StoredMapU256;
     private readonly userNoBet: StoredMapU256;
     private readonly userClaimed: StoredMapU256;
@@ -71,14 +60,12 @@ export class PredictionMarket extends OP_NET {
         this.userClaimed = new StoredMapU256(userClaimedPointer);
     }
 
-    // ─── Deployment ────────────────────────────────────────────────────────────
-
-    public override onDeployment(_calldata: Calldata): void {
+    // CLAUDE.md: super.onDeployment() MUST be called first
+    public override onDeployment(calldata: Calldata): void {
+        super.onDeployment(calldata);
         this.ownerMap.set(GLOBAL_KEY, this._addressToU256(Blockchain.tx.origin));
         this.marketCountMap.set(GLOBAL_KEY, u256.Zero);
     }
-
-    // ─── Create Market ─────────────────────────────────────────────────────────
 
     @method({ name: 'titleHash', type: ABIDataTypes.UINT256 }, { name: 'deadlineBlocks', type: ABIDataTypes.UINT64 }, { name: 'category', type: ABIDataTypes.UINT8 })
     @returns({ name: 'marketId', type: ABIDataTypes.UINT256 })
@@ -94,21 +81,17 @@ export class PredictionMarket extends OP_NET {
 
         this.marketTitle.set(marketId, titleHash);
         this.marketDeadline.set(marketId, deadline);
-        this.marketResolved.set(marketId, u256.Zero); // open
+        this.marketResolved.set(marketId, u256.Zero);
         this.marketYesPool.set(marketId, u256.Zero);
         this.marketNoPool.set(marketId, u256.Zero);
         this.marketCategory.set(marketId, u256.fromU8(category));
         this.marketCreator.set(marketId, this._addressToU256(Blockchain.tx.sender));
-
-        // increment count
         this.marketCountMap.set(GLOBAL_KEY, SafeMath.add(marketId, u256.One));
 
         const writer = new BytesWriter(32);
         writer.writeU256(marketId);
         return writer;
     }
-
-    // ─── Bet YES ───────────────────────────────────────────────────────────────
 
     @method({ name: 'marketId', type: ABIDataTypes.UINT256 }, { name: 'tokenAddress', type: ABIDataTypes.ADDRESS }, { name: 'amount', type: ABIDataTypes.UINT256 })
     @returns({ name: 'newYesPool', type: ABIDataTypes.UINT256 })
@@ -119,25 +102,21 @@ export class PredictionMarket extends OP_NET {
 
         this._validateBet(marketId, amount);
 
-        // Transfer tokens to contract
-        this._transferFrom(token, Blockchain.tx.sender, Blockchain.contractAddress, amount);
-
-        // Apply fee
         const fee = this._calcFee(amount);
         const netAmount = SafeMath.sub(amount, fee);
-
         const userKey = this._userMarketKey(Blockchain.tx.sender, marketId);
-        this.userYesBet.set(userKey, SafeMath.add(this.userYesBet.get(userKey), netAmount));
 
+        // CEI: state updates before external call
+        this.userYesBet.set(userKey, SafeMath.add(this.userYesBet.get(userKey), netAmount));
         const newPool = SafeMath.add(this.marketYesPool.get(marketId), netAmount);
         this.marketYesPool.set(marketId, newPool);
+
+        this._transferFrom(token, Blockchain.tx.sender, Blockchain.contractAddress, amount);
 
         const writer = new BytesWriter(32);
         writer.writeU256(newPool);
         return writer;
     }
-
-    // ─── Bet NO ────────────────────────────────────────────────────────────────
 
     @method({ name: 'marketId', type: ABIDataTypes.UINT256 }, { name: 'tokenAddress', type: ABIDataTypes.ADDRESS }, { name: 'amount', type: ABIDataTypes.UINT256 })
     @returns({ name: 'newNoPool', type: ABIDataTypes.UINT256 })
@@ -148,42 +127,37 @@ export class PredictionMarket extends OP_NET {
 
         this._validateBet(marketId, amount);
 
-        this._transferFrom(token, Blockchain.tx.sender, Blockchain.contractAddress, amount);
-
         const fee = this._calcFee(amount);
         const netAmount = SafeMath.sub(amount, fee);
-
         const userKey = this._userMarketKey(Blockchain.tx.sender, marketId);
-        this.userNoBet.set(userKey, SafeMath.add(this.userNoBet.get(userKey), netAmount));
 
+        // CEI: state updates before external call
+        this.userNoBet.set(userKey, SafeMath.add(this.userNoBet.get(userKey), netAmount));
         const newPool = SafeMath.add(this.marketNoPool.get(marketId), netAmount);
         this.marketNoPool.set(marketId, newPool);
+
+        this._transferFrom(token, Blockchain.tx.sender, Blockchain.contractAddress, amount);
 
         const writer = new BytesWriter(32);
         writer.writeU256(newPool);
         return writer;
     }
 
-    // ─── Resolve Market (owner or creator) ────────────────────────────────────
-
     @method({ name: 'marketId', type: ABIDataTypes.UINT256 }, { name: 'outcome', type: ABIDataTypes.UINT8 })
     @returns({ name: 'success', type: ABIDataTypes.BOOL })
     public resolve(calldata: Calldata): BytesWriter {
         const marketId = calldata.readU256();
-        const outcome = calldata.readU8(); // 1=YES, 2=NO, 3=CANCELLED
+        const outcome = calldata.readU8();
 
         const caller = Blockchain.tx.sender;
         const owner = this._u256ToAddress(this.ownerMap.get(GLOBAL_KEY));
         const creator = this._u256ToAddress(this.marketCreator.get(marketId));
 
         if (!caller.equals(owner) && !caller.equals(creator)) throw new Revert('Not authorized');
-
-        const current = this.marketResolved.get(marketId);
-        if (!current.isZero()) throw new Revert('Already resolved');
+        if (!this.marketResolved.get(marketId).isZero()) throw new Revert('Already resolved');
 
         const deadline = this.marketDeadline.get(marketId).toU64();
         if (Blockchain.block.number < deadline) throw new Revert('Market still open');
-
         if (outcome < 1 || outcome > 3) throw new Revert('Invalid outcome');
 
         this.marketResolved.set(marketId, u256.fromU8(outcome));
@@ -192,8 +166,6 @@ export class PredictionMarket extends OP_NET {
         writer.writeBoolean(true);
         return writer;
     }
-
-    // ─── Claim Winnings ────────────────────────────────────────────────────────
 
     @method({ name: 'marketId', type: ABIDataTypes.UINT256 }, { name: 'tokenAddress', type: ABIDataTypes.ADDRESS })
     @returns({ name: 'payout', type: ABIDataTypes.UINT256 })
@@ -212,7 +184,6 @@ export class PredictionMarket extends OP_NET {
         let payout = u256.Zero;
 
         if (outcome === 3) {
-            // Cancelled: full refund
             payout = SafeMath.add(this.userYesBet.get(userKey), this.userNoBet.get(userKey));
         } else {
             const yesPool = this.marketYesPool.get(marketId);
@@ -220,13 +191,11 @@ export class PredictionMarket extends OP_NET {
             const totalPool = SafeMath.add(yesPool, noPool);
 
             if (outcome === 1) {
-                // YES wins
                 const userBet = this.userYesBet.get(userKey);
                 if (!userBet.isZero() && !yesPool.isZero()) {
                     payout = SafeMath.div(SafeMath.mul(userBet, totalPool), yesPool);
                 }
             } else {
-                // NO wins
                 const userBet = this.userNoBet.get(userKey);
                 if (!userBet.isZero() && !noPool.isZero()) {
                     payout = SafeMath.div(SafeMath.mul(userBet, totalPool), noPool);
@@ -236,6 +205,7 @@ export class PredictionMarket extends OP_NET {
 
         if (payout.isZero()) throw new Revert('Nothing to claim');
 
+        // CEI: mark claimed before transfer
         this.userClaimed.set(userKey, u256.One);
         this._transfer(token, user, payout);
 
@@ -243,8 +213,6 @@ export class PredictionMarket extends OP_NET {
         writer.writeU256(payout);
         return writer;
     }
-
-    // ─── View: Market Info ─────────────────────────────────────────────────────
 
     @method({ name: 'marketId', type: ABIDataTypes.UINT256 })
     @returns(
@@ -257,7 +225,7 @@ export class PredictionMarket extends OP_NET {
     )
     public getMarket(calldata: Calldata): BytesWriter {
         const marketId = calldata.readU256();
-        const writer = new BytesWriter(32 + 8 + 1 + 32 + 32 + 1);
+        const writer = new BytesWriter(106);
         writer.writeU256(this.marketTitle.get(marketId));
         writer.writeU64(this.marketDeadline.get(marketId).toU64());
         writer.writeU8(this.marketResolved.get(marketId).toU64() as u8);
@@ -266,8 +234,6 @@ export class PredictionMarket extends OP_NET {
         writer.writeU8(this.marketCategory.get(marketId).toU64() as u8);
         return writer;
     }
-
-    // ─── View: User Position ───────────────────────────────────────────────────
 
     @method({ name: 'user', type: ABIDataTypes.ADDRESS }, { name: 'marketId', type: ABIDataTypes.UINT256 })
     @returns(
@@ -280,14 +246,12 @@ export class PredictionMarket extends OP_NET {
         const marketId = calldata.readU256();
         const userKey = this._userMarketKey(user, marketId);
 
-        const writer = new BytesWriter(32 + 32 + 1);
+        const writer = new BytesWriter(65);
         writer.writeU256(this.userYesBet.get(userKey));
         writer.writeU256(this.userNoBet.get(userKey));
         writer.writeBoolean(!this.userClaimed.get(userKey).isZero());
         return writer;
     }
-
-    // ─── View: Market Count ────────────────────────────────────────────────────
 
     @method()
     @returns({ name: 'count', type: ABIDataTypes.UINT256 })
@@ -297,12 +261,9 @@ export class PredictionMarket extends OP_NET {
         return writer;
     }
 
-    // ─── Internal Helpers ──────────────────────────────────────────────────────
-
     private _validateBet(marketId: u256, amount: u256): void {
         if (amount.isZero()) throw new Revert('Amount must be > 0');
-        const resolved = this.marketResolved.get(marketId);
-        if (!resolved.isZero()) throw new Revert('Market resolved');
+        if (!this.marketResolved.get(marketId).isZero()) throw new Revert('Market resolved');
         const deadline = this.marketDeadline.get(marketId).toU64();
         if (Blockchain.block.number >= deadline) throw new Revert('Market expired');
     }
@@ -315,7 +276,6 @@ export class PredictionMarket extends OP_NET {
     }
 
     private _userMarketKey(user: Address, marketId: u256): u256 {
-        // Simple composite key: XOR user bytes with marketId
         const userAsU256 = this._addressToU256(user);
         return SafeMath.add(userAsU256, SafeMath.mul(marketId, u256.fromU64(1000000007)));
     }
