@@ -1,0 +1,17 @@
+{
+  "targets": {
+    "release": {
+      "outFile": "build/PredictionMarket.wasm",
+      "optimizeLevel": 3,
+      "shrinkLevel": 2,
+      "converge": false,
+      "noAssert": false
+    }
+  },
+  "options": {
+    "exportRuntime": false,
+    "runtime": "stub",
+    "use": "abort=",
+    "transform": "@btc-vision/opnet-transform"
+  }
+}
