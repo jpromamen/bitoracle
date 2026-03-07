@@ -1,0 +1,208 @@
+{
+    "functions": [
+        {
+            "name": "createMarket",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "titleHash",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "deadlineBlocks",
+                    "type": "UINT64"
+                },
+                {
+                    "name": "category",
+                    "type": "UINT8"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "betYes",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "tokenAddress",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "amount",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "newYesPool",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "betNo",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "tokenAddress",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "amount",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "newNoPool",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "resolve",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "outcome",
+                    "type": "UINT8"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "success",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "claim",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "tokenAddress",
+                    "type": "ADDRESS"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "payout",
+                    "type": "UINT256"
+                }
+            ]
+        },
+        {
+            "name": "getMarket",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "titleHash",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "deadline",
+                    "type": "UINT64"
+                },
+                {
+                    "name": "resolved",
+                    "type": "UINT8"
+                },
+                {
+                    "name": "yesPool",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "noPool",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "category",
+                    "type": "UINT8"
+                }
+            ]
+        },
+        {
+            "name": "getUserPosition",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "ADDRESS"
+                },
+                {
+                    "name": "marketId",
+                    "type": "UINT256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "yesBet",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "noBet",
+                    "type": "UINT256"
+                },
+                {
+                    "name": "claimed",
+                    "type": "BOOL"
+                }
+            ]
+        },
+        {
+            "name": "getMarketCount",
+            "type": "Function",
+            "payable": false,
+            "onlyOwner": false,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "count",
+                    "type": "UINT256"
+                }
+            ]
+        }
+    ],
+    "events": []
+}
