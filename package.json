@@ -1,0 +1,7 @@
+{
+  "name": "bitoracle-prediction-market",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo No build needed"
+  }
+}
